@@ -51,35 +51,35 @@ def get_db(chat_id: str = Header(...)):
         yield db
     finally:
         db.close()
-
 @app.get("/api/tasks", response_model=List[TaskInDB])
 def get_tasks(
     completed: Optional[bool] = Query(None, description="Filter tasks by completion status"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    chat_id: str = Header(...)
 ):
-    query = db.query(Task)  
+    query = db.query(Task).filter(Task.chat_id == chat_id)  # Filter by chat_id
     if completed is not None:
         query = query.filter(Task.completed == completed)
     return query.all()
 
 @app.get("/api/tasks/{task_id}", response_model=TaskInDB)
-def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
+def get_task(task_id: int, db: Session = Depends(get_db), chat_id: str = Header(...)):
+    task = db.query(Task).filter(Task.id == task_id, Task.chat_id == chat_id).first()
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
 @app.post("/api/tasks", response_model=TaskInDB)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
-    db_task = Task(title=task.title, description=task.description, completed=task.completed)
+def create_task(task: TaskCreate, db: Session = Depends(get_db), chat_id: str = Header(...)):
+    db_task = Task(chat_id=chat_id, title=task.title, description=task.description, completed=task.completed)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
     return db_task
 
 @app.put("/api/tasks/{task_id}", response_model=TaskInDB)
-def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
+def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(get_db), chat_id: str = Header(...)):
+    task = db.query(Task).filter(Task.id == task_id, Task.chat_id == chat_id).first()
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -95,8 +95,8 @@ def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(ge
     return task
 
 @app.delete("/api/tasks/{task_id}", response_model=TaskInDB)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
+def delete_task(task_id: int, db: Session = Depends(get_db), chat_id: str = Header(...)):
+    task = db.query(Task).filter(Task.id == task_id, Task.chat_id == chat_id).first()
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     
