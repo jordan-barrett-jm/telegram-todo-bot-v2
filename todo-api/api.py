@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
@@ -51,9 +51,14 @@ def get_db():
         db.close()
 
 @app.get("/api/tasks", response_model=List[TaskInDB])
-def get_tasks(db: Session = Depends(get_db)):
-    time.sleep(0.01)
-    return db.query(Task).all()
+def get_tasks(
+    completed: Optional[bool] = Query(None, description="Filter tasks by completion status"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Task)  
+    if completed is not None:
+        query = query.filter(Task.completed == completed)
+    return query.all()
 
 @app.get("/api/tasks/{task_id}", response_model=TaskInDB)
 def get_task(task_id: int, db: Session = Depends(get_db)):

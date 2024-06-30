@@ -51,9 +51,12 @@ load_dotenv()
 
 BASE_URL = os.getenv("BASE_URL")
 
-async def fetch(session: aiohttp.ClientSession, url: str) -> Dict[str, Any]:
-    async with session.get(url) as response:
-        return await response.json()
+async def fetch(session: aiohttp.ClientSession, url: str, params: Dict[str, str] = None) -> Dict[str, Any]:
+    async with session.get(url, params=params) as response:
+        if response.status == 200:
+            return await response.json()
+        else:
+            raise Exception(f"HTTP error {response.status}: {await response.text()}")
 
 async def post(session: aiohttp.ClientSession, url: str, data: Dict[str, Any]) -> Dict[str, Any]:
     async with session.post(url, json=data) as response:
@@ -67,10 +70,13 @@ async def delete(session: aiohttp.ClientSession, url: str) -> Dict[str, Any]:
     async with session.delete(url) as response:
         return await response.json()
 
-async def get_tasks() -> Dict[str, Any]:
+async def get_tasks(completed: Optional[bool] = None) -> Dict[str, Any]:
     async with aiohttp.ClientSession() as session:
         url = f"{BASE_URL}/tasks"
-        return await fetch(session, url)
+        params = {}
+        if completed is not None:
+            params['completed'] = str(completed).lower()
+        return await fetch(session, url, params=params)
 
 async def get_task(task_id: int) -> Dict[str, Any]:
     async with aiohttp.ClientSession() as session:
@@ -134,7 +140,7 @@ async def run_tool(tool_call):
     function_name = tool_call.function.name
     try:
         if function_name == "get_tasks":
-            res = await get_tasks()
+            res = await get_tasks(completed=False)
         elif function_name == "get_task":
             task_id = arguments["task_id"]
             res = await get_task(task_id)
